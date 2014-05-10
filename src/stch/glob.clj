@@ -34,7 +34,7 @@
   [pattern s]
   (let [regex (-> (if (instance? GlobPattern pattern)
                     pattern
-                    (glob-pattern (name pattern)))
+                    (glob-pattern pattern))
                   :compiled-pattern)
         matches (re-matches regex s)]
     (if (string? matches)

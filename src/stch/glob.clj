@@ -1,17 +1,20 @@
 (ns stch.glob
-  "Contains a simple glob fn. Credit to
+  "Contains a simple glob matching fn. Credit to
   https://github.com/jkk/clj-glob."
   (:require [clojure.string :as string]))
 
-(defrecord GlobPattern [compiled-pattern])
+(defrecord CompiledPattern [regex])
 
-(defn glob-pattern
+(defn compiled-pattern? [x]
+  (instance? CompiledPattern x))
+
+(defn compile-pattern
   "Takes a glob pattern as a string and returns a GlobPattern."
   [pattern]
   (loop [[c :as stream] pattern, re "", curly-depth 0]
     (cond
-     ; No more characters, return a GlobPattern
-     (nil? c) (GlobPattern. (re-pattern re))
+     ; No more characters, return a CompiledPattern
+     (nil? c) (CompiledPattern. (re-pattern re))
      ; Handle glob special characters
      (= c \\) (recur (nnext stream) (str re c c) curly-depth)
      (= c \*) (recur (next stream) (str re ".*") curly-depth)
@@ -27,15 +30,15 @@
      ; Not a special character
      :else (recur (next stream) (str re c) curly-depth))))
 
-(defn glob
+(defn match-glob
   "Attempt to match a string with the given glob
   pattern.  Returns the matched string on success,
   otherwise nil."
   [pattern s]
-  (let [regex (-> (if (instance? GlobPattern pattern)
+  (let [regex (-> (if (compiled-pattern? pattern)
                     pattern
-                    (glob-pattern pattern))
-                  :compiled-pattern)
+                    (compile-pattern pattern))
+                  :regex)
         matches (re-matches regex s)]
     (if (string? matches)
       matches
@@ -48,13 +51,10 @@
 (defn- absolute? [s]
   (= (first s) \/))
 
-(defn negate [form]
-  `(not ~form))
-
 (defmacro and-not [& forms]
-  `(and ~@(map negate forms)))
+  `(and ~@(map (fn [form] `(not ~form)) forms)))
 
-(defn globf
+(defn match-globf
   "Attempt to match the file path with the given glob pattern.
   Returns the matched portion on success, otherwise nil.
   Pattern and path must be strings."
@@ -69,8 +69,7 @@
                       (partition 2))
             path-matches
             (for [[pattern path] comb
-                  :let [regex (-> (glob-pattern pattern)
-                                  :compiled-pattern)
+                  :let [regex (:regex (compile-pattern pattern))
                         matches (re-matches regex path)]
                   :while matches]
               path)]

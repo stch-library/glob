@@ -9,7 +9,7 @@
   (instance? CompiledPattern x))
 
 (defn compile-pattern
-  "Takes a glob pattern as a string and returns a GlobPattern."
+  "Takes a glob pattern as a string and returns a CompiledPattern."
   [pattern]
   (loop [[c :as stream] pattern, re "", curly-depth 0]
     (cond

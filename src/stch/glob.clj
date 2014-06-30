@@ -3,42 +3,49 @@
   https://github.com/jkk/clj-glob."
   (:require [clojure.string :as string]))
 
-(defrecord CompiledPattern [regex])
-
 (defn compiled-pattern? [x]
-  (instance? CompiledPattern x))
+  (instance? java.util.regex.Pattern x))
 
 (defn compile-pattern
-  "Takes a glob pattern as a string and returns a CompiledPattern."
+  "Takes a glob pattern as a string and returns a regex pattern."
   [pattern]
   (loop [[c :as stream] pattern, re "", curly-depth 0]
     (cond
-     ; No more characters, return a CompiledPattern
-     (nil? c) (CompiledPattern. (re-pattern re))
-     ; Handle glob special characters
+     ;; No more characters, return the regex
+     (nil? c) (re-pattern re)
+     ;; Handle glob special characters
      (= c \\) (recur (nnext stream) (str re c c) curly-depth)
      (= c \*) (recur (next stream) (str re ".*") curly-depth)
      (= c \?) (recur (next stream) (str re ".{1}") curly-depth)
      (= c \{) (recur (next stream) (str re \() (inc curly-depth))
      (= c \}) (recur (next stream) (str re \)) (dec curly-depth))
-     ; handle comma separator within curly brackets
+     ;; handle comma separator within curly brackets
      (and (= c \,) (> curly-depth 0))
      (recur (next stream) (str re \|) curly-depth)
-     ; Escape regex special characters
+     ;; Escape regex special characters
      (#{\. \( \) \| \+ \^ \$ \@ \%} c)
      (recur (next stream) (str re \\ c) curly-depth)
-     ; Not a special character
+     ;; Not a special character
      :else (recur (next stream) (str re c) curly-depth))))
 
+(defmacro compile-pattern*
+  "Takes a glob pattern as a string and returns a regex pattern.
+  If a string is passed, the glob pattern can be compiled to a regex
+  at macro expansion time."
+  [pattern]
+  (cond (string? pattern)
+        (compile-pattern pattern)
+        (compiled-pattern? pattern) pattern
+        :else
+        `(compile-pattern ~pattern)))
+
 (defn match-glob
-  "Attempt to match a string with the given glob
-  pattern.  Returns the matched string on success,
-  otherwise nil."
+  "Attempt to match a string with the given glob pattern.
+  Returns the matched string on success, otherwise nil."
   [pattern s]
-  (let [regex (-> (if (compiled-pattern? pattern)
-                    pattern
-                    (compile-pattern pattern))
-                  :regex)
+  (let [regex (if (compiled-pattern? pattern)
+                pattern
+                (compile-pattern pattern))
         matches (re-matches regex s)]
     (if (string? matches)
       matches
@@ -69,7 +76,7 @@
                       (partition 2))
             path-matches
             (for [[pattern path] comb
-                  :let [regex (:regex (compile-pattern pattern))
+                  :let [regex (compile-pattern pattern)
                         matches (re-matches regex path)]
                   :while matches]
               path)]

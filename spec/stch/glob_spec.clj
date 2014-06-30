@@ -1,7 +1,16 @@
 (ns stch.glob-spec
   (:use speclj.core stch.glob))
 
+(def p "a*b{c,d}")
+
 (describe "glob"
+  (context "compile-pattern*"
+    (it "string"
+      (should-be compiled-pattern? (compile-pattern* "a*b{c,d}")))
+    (it "regex"
+      (should-be compiled-pattern? (compile-pattern* #"a.*b(c|d)")))
+    (it "symbol"
+      (should-be compiled-pattern? (compile-pattern* p))))
   (it "match-glob"
     (should= "a" (match-glob "a" "a"))
     (should-be-nil (match-glob "a" "b"))
@@ -17,7 +26,8 @@
     (should= "ac" (match-glob "a{b,c}" "ac"))
     (should= "ad" (match-glob "a{b,c,d}" "ad"))
     (should-be-nil (match-glob "a{b,c}" "ad"))
-    (should= "abcdef" (match-glob (compile-pattern "a{b,c}*e?") "abcdef")))
+    (should= "abcdef" (match-glob (compile-pattern "a{b,c}*e?") "abcdef"))
+    (should= "a" (match-glob #"a" "a")))
   (it "match-globf"
     (should= "/a" (match-globf "/a" "/a"))
     (should= "/ab" (match-globf "/a*" "/ab"))

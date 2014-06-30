@@ -1,4 +1,4 @@
-(defproject stch-library/glob "0.2.0"
+(defproject stch-library/glob "0.3.0"
   :description "Glob pattern matching."
   :url "https://github.com/stch-library/glob"
   :license {:name "Eclipse Public License"
